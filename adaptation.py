@@ -52,10 +52,11 @@ def train_sam(
         for iter, data in enumerate(train_dataloader):
 
             data_time.update(time.time() - end)
-            images_weak, images_strong, bboxes, gt_masks = data
+            images_weak, images_strong, bboxes, gt_masks, _ = data
             batch_size = images_weak.size(0)
             num_insts = sum(len(gt_mask) for gt_mask in gt_masks)
             if num_insts > cfg.max_nums:
+                continue
                 print(num_insts)
                 bboxes, gt_masks = reduce_instances(bboxes, gt_masks, cfg.max_nums)
 
@@ -93,7 +94,7 @@ def train_sam(
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
 
             batch_time.update(time.time() - end)
             end = time.time()

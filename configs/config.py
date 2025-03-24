@@ -3,7 +3,7 @@ from configs.base_config import base_config
 
 
 config = {
-    "gpu_ids": "0,1,2,3",
+    "gpu_ids": "7",
     "batch_size": 1,
     "val_batchsize": 4,
     "num_workers": 4,
@@ -11,9 +11,9 @@ config = {
     "max_nums": 40,
     "num_points": 5,
     "eval_interval": 1,
-    "dataset": "COCO",
-    "prompt": "box",
-    "out_dir": "output/benchmark/COCO",
+    "dataset": "CODAll",
+    "prompt": "point",
+    "out_dir": "output/benchmark/CODAll", # "output/benchmark/COD10K",
     "name": "baseline",
     "augment": True,
     "corrupt": None,

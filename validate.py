@@ -6,7 +6,7 @@ import segmentation_models_pytorch as smp
 from box import Box
 from lightning.fabric.loggers import TensorBoardLogger
 
-from configs.config_validate import cfg
+from configs.config import cfg
 from datasets import call_load_dataset
 from model import Model
 from utils.eval_utils import AverageMeter, get_prompts, validate
@@ -44,16 +44,19 @@ def main(cfg: Box, ckpt: str = None) -> None:
         LoRA_Sam(model.model, 4)
 
     load_datasets = call_load_dataset(cfg)
-    _, val_data = load_datasets(cfg, model.model.image_encoder.img_size)
+    _, val_data, train_each_data = load_datasets(cfg, model.model.image_encoder.img_size)
 
     fabric.print(f"Val Data: {len(val_data) * cfg.val_batchsize}")
+    print(len(val_data))
+    print(len(train_each_data))
     val_data = fabric._setup_dataloader(val_data)
+    train_each_data = fabric._setup_dataloader(train_each_data)
 
     if ckpt is not None:
         full_checkpoint = fabric.load(ckpt)
         model.load_state_dict(full_checkpoint["model"])
-
-    validate(fabric, cfg, model, val_data, name=cfg.name, iters=0)
+    validate(fabric, cfg, model, train_each_data, name=cfg.name, iters=0, save_image_path='./Pred_results/',is_val=False)
+    validate(fabric, cfg, model, val_data, name=cfg.name, iters=0, save_image_path='./Pred_results/')
 
     del model, val_data
 
@@ -64,7 +67,9 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu_ids
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ckpt", default=None, type=str)
+    parser.add_argument("--ckpt", 
+                        default='/home/panly/CodeField/wesam/output_my/benchmark/CODAll/save/CODAll-point-last-ckpt.pth', 
+                        type=str)
     args = parser.parse_args()
 
     main(cfg, args.ckpt)

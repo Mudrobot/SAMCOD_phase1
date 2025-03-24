@@ -5,10 +5,10 @@ def call_load_dataset(cfg):
     module_name = f"datasets.{key}"
     function_name = "load_datasets"
 
-    if cfg.visual:
+    if cfg.visual: # default False
         function_name = function_name + "_" + "visual"
 
-    if cfg.prompt == "coarse":
+    if cfg.prompt == "coarse": # now Point
         function_name = function_name + "_" + "coarse"
 
     exec(f"from {module_name} import {function_name}")

@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 from model import Model
 from utils.sample_utils import get_point_prompts
 from utils.tools import write_csv
+from PIL import Image
+from torchvision.utils import save_image
 
 
 class AverageMeter:
@@ -48,21 +50,69 @@ def get_prompts(cfg: Box, bboxes, gt_masks):
         raise ValueError("Prompt Type Error!")
     return prompts
 
+def save_mask_as_image(mask, file_path="mask.png", threshold=0.5):
+    """
+    将生成的 mask 保存为图片格式。
 
-def validate(fabric: L.Fabric, cfg: Box, model: Model, val_dataloader: DataLoader, name: str, iters: int = 0):
+    参数：
+        mask (torch.Tensor): 形状为 (1, H, W) 的 mask，数据类型为 torch.float32，
+                             可能存放在 GPU 上。
+        file_path (str): 保存图片的路径，默认保存为 "mask.png"。
+        threshold (float): 二值化的阈值，默认值为 0.5。
+
+    返回：
+        None。该函数将图片保存到指定路径。
+    """
+    # 将 mask 转移到 CPU 上
+    mask_cpu = mask.cpu()
+    
+    # 根据阈值进行二值化
+    mask_bin = mask_cpu > threshold
+    
+    # 转换为 uint8 类型，并将 True 映射为 255，False 映射为 0
+    mask_uint8 = mask_bin.to(torch.uint8) * 255
+    
+    # 移除多余的通道维度（假设第一维是单通道）
+    mask_img = mask_uint8.squeeze(0)
+    
+    # 将 tensor 转换为 numpy 数组，并用 PIL 创建图像
+    mask_np = mask_img.numpy()
+    img = Image.fromarray(mask_np)
+    
+    # 保存图片
+    img.save(file_path)
+    # print(f"Mask image saved to {file_path}")
+
+def validate(fabric: L.Fabric, cfg: Box, model: Model, val_dataloader: DataLoader, name: str, iters: int = 0, save_image_path: str = None, is_val: bool = True):
     model.eval()
     ious = AverageMeter()
     f1_scores = AverageMeter()
-
+    cnt = 0
+    if save_image_path:
+        save_image_path = save_image_path + cfg['dataset'] + '/val/' if is_val else save_image_path + cfg['dataset'] + '/train/'
     with torch.no_grad():
         for iter, data in enumerate(val_dataloader):
-            images, bboxes, gt_masks = data
+            if iter < 1720: continue
+            images, bboxes, gt_masks, images_name = data
+            images_list = list(torch.unbind(images, dim=0))
             num_images = images.size(0)
 
             prompts = get_prompts(cfg, bboxes, gt_masks)
 
             _, pred_masks, _, _ = model(images, prompts)
-            for pred_mask, gt_mask in zip(pred_masks, gt_masks):
+            for pred_mask, gt_mask, image in zip(pred_masks, gt_masks, images_list):
+                if save_image_path: 
+                    device_id = pred_mask.get_device()
+                    if not os.path.exists(f'{save_image_path}/pred'):
+                        os.makedirs(f'{save_image_path}/pred')
+                    if not os.path.exists(f'{save_image_path}/gt'):
+                        os.makedirs(f'{save_image_path}/gt')
+                    if not os.path.exists(f'{save_image_path}/image'):
+                        os.makedirs(f'{save_image_path}/image')
+                    save_image(image, os.path.join(save_image_path, f"image/{images_name[0]}"))
+                    save_mask_as_image(pred_mask, file_path=os.path.join(save_image_path, f"pred/{images_name[0]}"))
+                    save_mask_as_image(gt_mask, file_path=os.path.join(save_image_path, f"gt/{images_name[0]}"))
+                    cnt += 1
                 batch_stats = smp.metrics.get_stats(
                     pred_mask,
                     gt_mask.int(),
