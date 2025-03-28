@@ -195,7 +195,7 @@ def main(cfg: Box, ckpt: str = None) -> None:
         LoRA_Sam(model.model, 4)
 
     load_datasets = call_load_dataset(cfg)
-    train_data, val_data = load_datasets(cfg, model.model.image_encoder.img_size)
+    train_data, val_data, _ = load_datasets(cfg, model.model.image_encoder.img_size)
     optimizer, scheduler = configure_opt(cfg, model.model)
 
     fabric.print(f"Train Data: {len(train_data) * cfg.batch_size}; Val Data: {len(val_data) * cfg.val_batchsize}")

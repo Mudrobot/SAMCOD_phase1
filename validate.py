@@ -44,19 +44,19 @@ def main(cfg: Box, ckpt: str = None) -> None:
         LoRA_Sam(model.model, 4)
 
     load_datasets = call_load_dataset(cfg)
-    _, val_data, train_each_data = load_datasets(cfg, model.model.image_encoder.img_size)
-
-    fabric.print(f"Val Data: {len(val_data) * cfg.val_batchsize}")
-    print(len(val_data))
-    print(len(train_each_data))
-    val_data = fabric._setup_dataloader(val_data)
+    _, _, train_each_data = load_datasets(cfg, model.model.image_encoder.img_size)
+    fabric.print(f"Train Data: {len(train_each_data) * cfg.batch_size}")
     train_each_data = fabric._setup_dataloader(train_each_data)
 
     if ckpt is not None:
         full_checkpoint = fabric.load(ckpt)
         model.load_state_dict(full_checkpoint["model"])
     validate(fabric, cfg, model, train_each_data, name=cfg.name, iters=0, save_image_path='./Pred_results/',is_val=False)
-    validate(fabric, cfg, model, val_data, name=cfg.name, iters=0, save_image_path='./Pred_results/')
+    for data_name in ['cod', 'camo', 'cham']:
+        _, val_data, _ = load_datasets(cfg, model.model.image_encoder.img_size, eval_dataset=data_name)
+        fabric.print(f"Val {data_name} Data: {len(val_data) * cfg.batch_size}")
+        val_data = fabric._setup_dataloader(val_data)
+        validate(fabric, cfg, model, val_data, name=cfg.name, iters=0, save_image_path='./Pred_results/',eval_dataset=data_name)
 
     del model, val_data
 
@@ -64,11 +64,12 @@ def main(cfg: Box, ckpt: str = None) -> None:
 if __name__ == "__main__":
     torch.cuda.empty_cache()
     torch.set_float32_matmul_precision('high')
+    cfg.gpu_ids = '7'
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu_ids
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", 
-                        default='/home/panly/CodeField/wesam/output_my/benchmark/CODAll/save/CODAll-point-last-ckpt.pth', 
+                        default='/home/panly/CodeField/wesam/output/benchmark/CODAll/save/CODAll-box-last-ckpt.pth', 
                         type=str)
     args = parser.parse_args()
 

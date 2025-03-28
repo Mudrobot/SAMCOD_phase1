@@ -83,16 +83,21 @@ def save_mask_as_image(mask, file_path="mask.png", threshold=0.5):
     img.save(file_path)
     # print(f"Mask image saved to {file_path}")
 
-def validate(fabric: L.Fabric, cfg: Box, model: Model, val_dataloader: DataLoader, name: str, iters: int = 0, save_image_path: str = None, is_val: bool = True):
+data_dict = {
+    "cod" : "COD10K",
+    "camo" : "CAMO",
+    "cham" : "CHAMELEON"
+}
+def validate(fabric: L.Fabric, cfg: Box, model: Model, val_dataloader: DataLoader, name: str, iters: int = 0, save_image_path: str = None, is_val: bool = True, eval_dataset: str = None):
     model.eval()
     ious = AverageMeter()
     f1_scores = AverageMeter()
     cnt = 0
+    eval_dataset = eval_dataset if eval_dataset else cfg['eval_dataset']
     if save_image_path:
-        save_image_path = save_image_path + cfg['dataset'] + '/val/' if is_val else save_image_path + cfg['dataset'] + '/train/'
+        save_image_path = save_image_path + cfg['dataset'] + f"/{cfg['prompt']}/val/{data_dict[eval_dataset]}/" if is_val else save_image_path + cfg['dataset'] + f"/{cfg['prompt']}/train/"
     with torch.no_grad():
         for iter, data in enumerate(val_dataloader):
-            if iter < 1720: continue
             images, bboxes, gt_masks, images_name = data
             images_list = list(torch.unbind(images, dim=0))
             num_images = images.size(0)
@@ -100,7 +105,7 @@ def validate(fabric: L.Fabric, cfg: Box, model: Model, val_dataloader: DataLoade
             prompts = get_prompts(cfg, bboxes, gt_masks)
 
             _, pred_masks, _, _ = model(images, prompts)
-            for pred_mask, gt_mask, image in zip(pred_masks, gt_masks, images_list):
+            for pred_mask, gt_mask, image, image_name in zip(pred_masks, gt_masks, images_list, images_name):
                 if save_image_path: 
                     device_id = pred_mask.get_device()
                     if not os.path.exists(f'{save_image_path}/pred'):
@@ -109,9 +114,9 @@ def validate(fabric: L.Fabric, cfg: Box, model: Model, val_dataloader: DataLoade
                         os.makedirs(f'{save_image_path}/gt')
                     if not os.path.exists(f'{save_image_path}/image'):
                         os.makedirs(f'{save_image_path}/image')
-                    save_image(image, os.path.join(save_image_path, f"image/{images_name[0]}"))
-                    save_mask_as_image(pred_mask, file_path=os.path.join(save_image_path, f"pred/{images_name[0]}"))
-                    save_mask_as_image(gt_mask, file_path=os.path.join(save_image_path, f"gt/{images_name[0]}"))
+                    save_image(image, os.path.join(save_image_path, f"image/{image_name}"))
+                    save_mask_as_image(pred_mask, file_path=os.path.join(save_image_path, f"pred/{image_name}"))
+                    save_mask_as_image(gt_mask, file_path=os.path.join(save_image_path, f"gt/{image_name}"))
                     cnt += 1
                 batch_stats = smp.metrics.get_stats(
                     pred_mask,

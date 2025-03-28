@@ -70,6 +70,24 @@ class CODAllDataset(Dataset):
         with open(path, 'rb') as f:
             img = Image.open(f)
             return img.convert('L')
+        
+    def binary_loader(self, path, threshold=128):
+        with open(path, 'rb') as f:
+            img = Image.open(f)
+            # 将图像转换为灰度图
+            img_gray = img.convert('L')
+            
+            # 将图像转为 NumPy 数组
+            img_array = np.array(img_gray)
+            
+            # 二值化处理：像素值大于threshold的设为255，否则设为0
+            img_array[img_array > threshold] = 255
+            img_array[img_array <= threshold] = 0
+            
+            # 将处理后的 NumPy 数组转换回图像
+            img_binary = Image.fromarray(img_array)
+            
+            return img_binary
 
     def __len__(self):
         return len(self.images)
@@ -205,14 +223,14 @@ class CODAllDatasetwithCoarse(CODAllDataset):
             return image, torch.tensor(bboxes), torch.tensor(masks).float()
 
 
-def load_datasets(cfg, img_size):
+def load_datasets(cfg, img_size, eval_dataset=None):
     transform = ResizeAndPad(img_size)
     val = CODAllDataset(
         cfg,
         image_root='./data/CODAll/',
         gt_root='./data/CODAll/',
         transform=transform,
-        eval_dataset='cod'
+        eval_dataset=cfg['eval_dataset'] if eval_dataset==None else eval_dataset
         # split=cfg.split,
     )
     train = CODAllDataset(
@@ -235,10 +253,10 @@ def load_datasets(cfg, img_size):
     )
     # print(len(train))
     # print(len(train_each))
-    # print(len(val))
+    print(len(val))
     val_dataloader = DataLoader(
         val,
-        batch_size=cfg.val_batchsize,
+        batch_size=cfg.batch_size, # cfg.val_batchsize,
         shuffle=False,
         num_workers=cfg.num_workers,
         collate_fn=collate_fn,
