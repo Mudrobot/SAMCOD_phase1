@@ -3,7 +3,7 @@ from configs.base_config import base_config
 
 
 config = {
-    "gpu_ids": "4,5,6,7",
+    "gpu_ids": "0,1,2,3",
     "batch_size": 1,
     "val_batchsize": 4,
     "num_workers": 4,
